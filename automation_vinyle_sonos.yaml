@@ -1,0 +1,40 @@
+alias: "Lecture vinyle → Bascule sur enceinte Sonos"
+description: "Bascule sur l'enceinte Sonos lorsqu'un vinyle est en écoute."
+
+triggers:
+  - trigger: mqtt
+    topic: vinyle/status
+    payload: "playing"
+    id: vinyle_start
+  - trigger: mqtt
+    topic: vinyle/status
+    payload: "idle"
+    id: vinyle_stop
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: vinyle_start
+        sequence:
+          - action: media_player.play_media
+            target:
+              entity_id: media_player.enceinte_sonos
+            data:
+              media_content_id: "x-rincon-mp3radio://http://vinyl.local:8000/turntable.mp3"
+              media_content_type: "music"
+          - action: media_player.volume_set
+            target:
+              entity_id: media_player.enceinte_sonos
+            data:
+              volume_level: 0.30
+
+      - conditions:
+          - condition: trigger
+            id: vinyle_stop
+        sequence:
+          - action: media_player.media_stop
+            target:
+              entity_id: media_player.enceinte_sonos
+
+mode: single

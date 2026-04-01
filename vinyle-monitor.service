@@ -1,0 +1,12 @@
+[Unit]
+Description=Vinyle Monitor MQTT
+After=network.target sound.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/vinyle_monitor.py
+Restart=always
+RestartSec=10
+User=pi
+
+[Install]
+WantedBy=multi-user.target

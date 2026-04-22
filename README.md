@@ -1,82 +1,115 @@
-# turntable-mqtt-bridge
+# 🎧 turntable-mqtt-bridge
 
-Détection automatique de la lecture d'une platine vinyle USB, envoi de l'état via MQTT et lecture automatique d'une enceinte Sonos par automatisation Home Assistant.
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-red)
+![MQTT](https://img.shields.io/badge/protocol-MQTT-blue)
+![Home Assistant](https://img.shields.io/badge/integration-Home%20Assistant-41BDF5)
+![Audio](https://img.shields.io/badge/audio-Icecast%20%2B%20Darkice-purple)
 
-## Architecture
+> 🌀 Turn your **vinyl turntable** into a smart, automated audio source with MQTT + Home Assistant + Sonos.
 
+---
+
+## ✨ Features
+
+* 🎶 Automatic **vinyl playback detection** (RMS audio analysis)
+* 📡 Publishes state via **MQTT**
+* 🏠 Seamless **Home Assistant automation**
+* 🔊 Auto-switch & play on **Sonos speakers**
+* ⚡ Lightweight, runs on a **Raspberry Pi Zero**
+
+---
+
+## 🏗️ Architecture
+
+```text
+USB Turntable
+      ↓
+Raspberry Pi (Darkice)
+      ↓
+Icecast (MP3 stream)
+      ↓
+vinyle_monitor.py (RMS detection)
+      ↓
+MQTT Broker (Mosquitto)
+      ↓
+Home Assistant
+      ↓
+Sonos Speaker 🔊
 ```
-Platine USB → Raspberry Pi Zero → Darkice → Icecast (stream MP3)
-                                       ↓
-                              vinyle_monitor.py
-                              (détection niveau audio RMS)
-                                       ↓
-                              MQTT Broker (Mosquitto)
-                                       ↓
-                              Home Assistant Automation
-                                       ↓
-                              Sonos (bascule source + volume)
-```
 
-## Matériel requis
+---
 
-- Raspberry Pi Zero (ou tout autre modèle)
-- Carte son USB (ex: USB AUDIO CODEC)
-- Platine vinyle avec sortie audio usb
-- Home Assistant avec add-on Mosquitto MQTT
-- Enceinte Sonos (ou autre !)
+## 🧰 Hardware
 
-## Prérequis logiciels
+* 🥧 Raspberry Pi (Zero / 3 / 4)
+* 🎚️ USB Audio Interface (e.g. USB AUDIO CODEC)
+* 💿 USB Turntable
+* 🏠 Home Assistant (with Mosquitto add-on)
+* 🔊 Sonos speaker (or compatible device)
 
-Sur le Raspberry Pi :
-- Raspberry Pi OS
-- Darkice + Icecast2 (pour le stream audio)
-- Sox avec support MP3
-- Python 3
-- paho-mqtt
+---
 
-## Installation
+## 💻 Software
 
-### 1. Installer les dépendances
+* Raspberry Pi OS
+* Darkice + Icecast2
+* Sox (with MP3 support)
+* Python 3
+* paho-mqtt
+
+---
+
+## ⚙️ Installation
+
+### 1. Install dependencies
 
 ```bash
 sudo apt update
 sudo apt install sox libsox-fmt-mp3 python3 python3-paho-mqtt
 ```
 
-### 2. Installer Darkice et Icecast
+---
 
-https://github.com/basdp/USB-Turntables-to-Sonos-with-RPi
+### 2. Install Darkice & Icecast
 
-### 3. Vérifier le stream mp3
+👉 https://github.com/basdp/USB-Turntables-to-Sonos-with-RPi
 
-Darkice capture le flux audio de la carte son USB et l'envoie vers Icecast.
-Vérifier (depuis le pi zero) que le stream est accessible :
+---
+
+### 3. Test audio stream
 
 ```bash
 sox -t mp3 http://localhost:8000/turntable.mp3 -n trim 0 2 stat 2>&1
 ```
 
-La ligne `RMS amplitude` doit afficher une valeur > 0 quand la platine tourne.
+✅ You should see:
 
-### 4. Déployer le script de détection
-
-Copier `vinyle_monitor.py` dans `/home/pi/` et éditer les variables de configuration :
-
-```python
-MQTT_HOST = "ipv4_du_broker_mqtt"
-MQTT_PORT = 1883
-MQTT_USER = "votre_user_mqtt"
-MQTT_PASS = "votre_pass_mqtt"
-MQTT_TOPIC = "vinyle/status"
-
-SILENCE_THRESHOLD = 0.01     # Seuil RMS pour détecter la lecture
-SILENCE_DURATION = 60        # Secondes de silence avant de passer à idle
-CHECK_INTERVAL = 5           # Secondes entre chaque mesure
+```
+RMS amplitude: > 0
 ```
 
-### 5. Créer le service systemd
+when the turntable is spinning.
 
-Copier `vinyle-monitor.service` dans `/etc/systemd/system/` en adaptant l'utilisateur :
+---
+
+### 4. Configure the script
+
+```python
+MQTT_HOST = "your_mqtt_broker_ipv4"
+MQTT_PORT = 1883
+MQTT_USER = "your_mqtt_user"
+MQTT_PASS = "your_mqtt_password"
+MQTT_TOPIC = "vinyle/status"
+
+SILENCE_THRESHOLD = 0.01
+SILENCE_DURATION = 60
+CHECK_INTERVAL = 5
+```
+
+---
+
+### 5. Enable systemd service
 
 ```bash
 sudo cp vinyle-monitor.service /etc/systemd/system/
@@ -85,21 +118,19 @@ sudo systemctl enable vinyle-monitor
 sudo systemctl start vinyle-monitor
 ```
 
-Vérifier que le service tourne :
+Check logs:
 
 ```bash
-sudo systemctl status vinyle-monitor
 journalctl -u vinyle-monitor -f
 ```
 
-### 6. Configurer Home Assistant
+---
 
-#### Automation YAML
+### 6. Home Assistant Automation
 
-Importer `automation_vinyle_sonos.yaml` dans Home Assistant via :
-**Paramètres → Automations → Créer une automation → Mode YAML**
+📍 Import `automation_vinyle_sonos.yaml`
 
-Adapter les valeurs suivantes dans le fichier :
+**Settings → Automations → YAML mode**
 
 ```yaml
 media_content_id: "x-rincon-mp3radio://http://vinyl.local:8000/turntable.mp3"
@@ -107,33 +138,85 @@ entity_id: media_player.enceinte_sonos
 volume_level: 0.30
 ```
 
-## Fonctionnement
+---
 
-- Le script mesure le niveau RMS du stream Icecast toutes les 5 secondes
-- Si RMS > `SILENCE_THRESHOLD` → publie `playing` sur le topic MQTT
-- Si RMS < `SILENCE_THRESHOLD` pendant plus de `SILENCE_DURATION` secondes → publie `idle`
-- Home Assistant écoute le topic et bascule le Sonos en conséquence
+## 🔄 How It Works
 
-## Dépannage
+```mermaid
+flowchart TD
+    A[Vinyl Playing 🎶] --> B[RMS Detection]
+    B -->|Audio detected| C[MQTT: playing]
+    B -->|Silence| D[MQTT: idle]
+    C --> E[Home Assistant]
+    D --> E
+    E --> F[Sonos Control 🔊]
+```
 
-**Le service ne démarre pas (status=217/USER)**
-→ Vérifier que l'utilisateur dans le fichier `.service` correspond bien à `whoami`
+---
 
-**RMS toujours à 0.0**
-→ Vérifier que la ligne Sox contient bien `RMS     amplitude` (avec plusieurs espaces)
-→ Le fix est dans le script : `if "RMS" in line and "amplitude" in line`
+## 🛠️ Troubleshooting
 
-**paho-mqtt DeprecationWarning**
-→ Warning sans impact sur le fonctionnement, lié à la version de paho-mqtt disponible sur Pi OS
+**❌ Service fails (status=217/USER)**
+→ Check the user in `.service` matches:
 
-## Fichiers
+```bash
+whoami
+```
 
-| Fichier | Description |
-|---|---|
-| `vinyle_monitor.py` | Script de détection audio et publication MQTT |
-| `vinyle-monitor.service` | Service systemd pour démarrage automatique |
-| `automation_vinyle_sonos.yaml` | Automation Home Assistant |
+---
 
-## Licence
+**🔇 RMS always 0.0**
 
-MIT
+* Ensure Sox output contains:
+
+  ```
+  RMS     amplitude
+  ```
+* Already handled in code:
+
+```python
+if "RMS" in line and "amplitude" in line
+```
+
+---
+
+**⚠️ paho-mqtt warning**
+
+* Safe to ignore (Pi OS package version)
+
+---
+
+## 📂 Project Structure
+
+```text
+.
+├── vinyle_monitor.py              # 🎧 Audio detection + MQTT
+├── vinyle-monitor.service        # ⚙️ systemd service
+├── automation_vinyle_sonos.yaml  # 🏠 Home Assistant automation
+```
+
+---
+
+## 🚀 Ideas / Improvements
+
+* 🎛️ Add volume normalization
+* 📊 Expose metrics (Prometheus / Grafana)
+* 🎚️ Auto EQ / DSP pipeline
+* 🧠 Machine learning detection instead of RMS
+
+---
+
+## 📜 License
+
+MIT © 2026
+
+---
+
+## ❤️ Credits
+
+Inspired by the awesome project:
+👉 https://github.com/basdp/USB-Turntables-to-Sonos-with-RPi
+
+---
+
+> 💿 *Because vinyl deserves smart automation.*
